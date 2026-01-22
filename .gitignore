@@ -1,0 +1,18 @@
+.ipynb_checkpoints/
+.env
+__pycache__/  
+serviceAccountKey.json
+OCR/*.gguf
+OCR/llama-b4400-bin-win-cuda-cu12.4-x64.zip
+OCR/koboldcpp.exe
+OCR/ggml-cuda.dll
+docker
+
+processed_markdowns
+data/data laporan magang
+data/input_pdfs
+data/input_pdfs - Copy
+data/output_markdowns
+data/processed_markdowns
+data/processed_pdfs
+data/temp_images_processing

@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ask to déFi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html,
+      body {
+        height: 100vh;
+        height: 100dvh;
+        font-family: "Inter", sans-serif;
+        overflow: hidden;
+      }
+      .loader {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3b82f6;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* SCROLLBAR CUSTOMIZATION */
+      #history-list::-webkit-scrollbar,
+      #chat-log-container::-webkit-scrollbar {
+        width: 6px;
+      }
+      #history-list::-webkit-scrollbar-track,
+      #chat-log-container::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      #history-list::-webkit-scrollbar-thumb {
+        background-color: #4b5563;
+        border-radius: 20px;
+      }
+      #chat-log-container::-webkit-scrollbar-thumb {
+        background-color: #d1d5db;
+        border-radius: 20px;
+      }
+
+      /* TOAST ANIMATION */
+      @keyframes slideIn {
+        from {
+          transform: translateY(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      @keyframes fadeOut {
+        from {
+          opacity: 1;
+        }
+        to {
+          opacity: 0;
+        }
+      }
+      .toast-in {
+        animation: slideIn 0.3s ease-out forwards;
+      }
+      .toast-out {
+        animation: fadeOut 0.5s ease-in forwards;
+      }
+
+      /* === STYLING UNTUK REFERENSI/SOURCES (ACCORDION) === */
+      .source-toggle-btn {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        padding: 10px 14px;
+        background-color: #f1f5f9;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #475569;
+        cursor: pointer;
+        transition: background-color 0.2s, transform 0.1s;
+        margin-top: 12px;
+        border: 1px solid #e2e8f0;
+      }
+      .source-toggle-btn:hover {
+        background-color: #e2e8f0;
+      }
+      .source-toggle-btn:active {
+        transform: scale(0.99);
+      }
+
+      /* Wrapper list sekarang menggunakan max-height null secara default */
+      .source-list-wrapper {
+        overflow: hidden;
+        max-height: 0; /* Default tertutup */
+        transition: max-height 0.4s ease-in-out; /* Animasi smooth */
+        background-color: #f8fafc;
+        border-radius: 0 0 8px 8px;
+      }
+
+      .source-item {
+        padding: 12px 14px;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 0.8rem;
+      }
+      .source-item:last-child {
+        border-bottom: none;
+      }
+      .source-title {
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 4px;
+        font-size: 0.85rem;
+      }
+      .source-content {
+        color: #64748b;
+        line-height: 1.5;
+        white-space: pre-wrap; /* Agar formatting teks terjaga */
+      }
+      .arrow-icon {
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .arrow-icon.rotate {
+        transform: rotate(180deg);
+      }
+
+      /* MENU ANIMATION */
+      #plus-menu {
+        transition: all 0.2s ease-in-out;
+        transform-origin: bottom left;
+      }
+      #plus-menu.hidden {
+        opacity: 0;
+        transform: scale(0.95) translateY(10px);
+        pointer-events: none;
+        display: none;
+      }
+      #plus-menu:not(.hidden) {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+        display: block;
+      }
+
+      /* Typing effect */
+      .typing-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .typing-dot {
+        width: 6px;
+        height: 6px;
+        background-color: #4b5563;
+        border-radius: 50%;
+        animation: typing 1.4s infinite ease-in-out both;
+      }
+
+      .typing-dot:nth-child(1) {
+        animation-delay: -0.32s;
+      }
+      .typing-dot:nth-child(2) {
+        animation-delay: -0.16s;
+      }
+
+      @keyframes typing {
+        0%,
+        80%,
+        100% {
+          transform: scale(0);
+        }
+        40% {
+          transform: scale(1);
+        }
+      }
+
+      /* Cursor berkedip untuk efek mengetik */
+      .streaming-cursor {
+        display: inline-block;
+        width: 3px;
+        height: 1em;
+        background-color: #374151;
+        margin-left: 2px;
+        animation: blink 1s infinite;
+        vertical-align: middle;
+      }
+
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0;
+        }
+      }
+    </style>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  </head>
+  <body class="bg-gray-100">
+    <div id="app-container" class="h-full">
+      <div id="loading-view" class="flex items-center justify-center h-full">
+        <div class="loader"></div>
+      </div>
+
+      <div id="auth-view" class="hidden h-full">
+        <div class="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
+          <div class="sm:mx-auto sm:w-full sm:max-w-sm">
+            <h2
+              class="mt-10 text-center text-3xl font-bold leading-9 tracking-tight text-gray-900"
+            >
+              déFi
+            </h2>
+          </div>
+          <div id="login-form" class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
+            <p class="text-center text-xl font-semibold mb-6">
+              Masuk ke Akun Anda
+            </p>
+            <form class="space-y-6" onsubmit="handleLogin(event)">
+              <div>
+                <label
+                  for="login-email"
+                  class="block text-sm font-medium leading-6 text-gray-900"
+                  >Alamat Email</label
+                >
+                <div class="mt-2">
+                  <input
+                    id="login-email"
+                    name="email"
+                    type="email"
+                    autocomplete="email"
+                    required
+                    class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 p-2"
+                  />
+                </div>
+              </div>
+              <div>
+                <label
+                  for="login-password"
+                  class="block text-sm font-medium leading-6 text-gray-900"
+                  >Password</label
+                >
+                <div class="mt-2">
+                  <input
+                    id="login-password"
+                    name="password"
+                    type="password"
+                    autocomplete="current-password"
+                    required
+                    class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 p-2"
+                  />
+                </div>
+              </div>
+              <p id="login-error" class="text-sm text-red-500"></p>
+              <div>
+                <button
+                  type="submit"
+                  class="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-indigo-500"
+                >
+                  Masuk
+                </button>
+              </div>
+            </form>
+            <p class="mt-10 text-center text-sm text-gray-500">
+              Belum punya akun?
+              <a
+                href="#"
+                id="show-register"
+                class="font-semibold leading-6 text-indigo-600 hover:text-indigo-500"
+                >Daftar di sini</a
+              >
+            </p>
+          </div>
+          <div
+            id="register-form"
+            class="hidden mt-10 sm:mx-auto sm:w-full sm:max-w-sm"
+          >
+            <p class="text-center text-xl font-semibold mb-6">Buat Akun Baru</p>
+            <form class="space-y-6" onsubmit="handleRegister(event)">
+              <div>
+                <label
+                  for="register-email"
+                  class="block text-sm font-medium leading-6 text-gray-900"
+                  >Alamat Email</label
+                >
+                <div class="mt-2">
+                  <input
+                    id="register-email"
+                    name="email"
+                    type="email"
+                    autocomplete="email"
+                    required
+                    class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 p-2"
+                  />
+                </div>
+              </div>
+              <div>
+                <label
+                  for="register-password"
+                  class="block text-sm font-medium leading-6 text-gray-900"
+                  >Password</label
+                >
+                <div class="mt-2">
+                  <input
+                    id="register-password"
+                    name="password"
+                    type="password"
+                    autocomplete="new-password"
+                    required
+                    class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 p-2"
+                  />
+                </div>
+              </div>
+              <p id="register-error" class="text-sm text-red-500"></p>
+              <div>
+                <button
+                  type="submit"
+                  class="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-indigo-500"
+                >
+                  Daftar
+                </button>
+              </div>
+            </form>
+            <p class="mt-10 text-center text-sm text-gray-500">
+              Sudah punya akun?
+              <a
+                href="#"
+                id="show-login"
+                class="font-semibold leading-6 text-indigo-600 hover:text-indigo-500"
+                >Masuk di sini</a
+              >
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div id="chat-view" class="hidden h-full flex">
+        <button
+          id="open-sidebar-btn"
+          class="absolute top-4 left-4 z-30 p-2 bg-white rounded-full shadow-md text-gray-600 hover:bg-gray-200 transition hidden"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 6h16M4 12h16M4 18h16"
+            />
+          </svg>
+        </button>
+
+        <aside
+          id="history-sidebar"
+          class="bg-gray-800 text-white w-72 flex-shrink-0 flex flex-col h-full z-20 transition-all duration-300"
+        >
+          <div
+            class="flex justify-between items-center p-4 border-b border-gray-700"
+          >
+            <h2 class="text-xl font-semibold">Riwayat Chat</h2>
+            <button
+              id="close-sidebar-btn"
+              class="text-gray-400 hover:text-white hover:bg-gray-700 rounded-full p-1 transition"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+          <div class="p-2">
+            <button
+              id="new-chat-btn"
+              class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-lg flex items-center justify-center space-x-2 transition-colors"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+                  clip-rule="evenodd"
+                /></svg
+              ><span>Chat Baru</span>
+            </button>
+          </div>
+          <nav
+            id="history-list"
+            class="flex-1 overflow-y-auto p-2 space-y-1"
+          ></nav>
+          <div
+            id="user-info"
+            class="p-4 border-t border-gray-700 text-xs text-gray-400"
+          >
+            <p
+              id="user-email-display"
+              class="truncate font-mono"
+              title="Loading..."
+            ></p>
+            <button
+              id="logout-btn"
+              class="mt-2 w-full text-left text-red-400 hover:text-red-300"
+            >
+              Keluar
+            </button>
+          </div>
+        </aside>
+
+        <div id="main-content" class="flex-1 flex flex-col h-full bg-white">
+          <main
+            id="chat-log-container"
+            class="flex-1 overflow-y-auto p-4 sm:p-6"
+          >
+            <div
+              id="chat-log"
+              class="max-w-3xl mx-auto flex flex-col gap-6 pb-32"
+            >
+              <div id="welcome-message" class="text-center text-gray-400 pt-20">
+                <h1 class="text-3xl font-bold text-gray-800">déFi</h1>
+                <p>Mulai percakapan baru atau pilih dari riwayat.</p>
+              </div>
+            </div>
+          </main>
+
+          <footer class="p-4 border-t border-gray-200 bg-white">
+            <div class="max-w-3xl mx-auto relative">
+              <div
+                id="plus-menu"
+                class="hidden absolute bottom-14 left-0 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50 p-1"
+              >
+                <button
+                  onclick="document.getElementById('file-upload').click()"
+                  class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-100 rounded-lg text-left transition text-sm text-gray-700"
+                >
+                  <div class="p-1.5 bg-red-100 rounded-full text-red-600">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      class="w-5 h-5"
+                    >
+                      <path
+                        fill-rule="evenodd"
+                        d="M1.5 6a2.25 2.25 0 012.25-2.25h16.5A2.25 2.25 0 0122.5 6v12a2.25 2.25 0 01-2.25 2.25H3.75A2.25 2.25 0 011.5 18V6zM3 16.06V18c0 .414.336.75.75.75h16.5A.75.75 0 0021 18v-1.94l-2.69-2.689a1.5 1.5 0 00-2.12 0l-.88.879.97.97a.75.75 0 11-1.06 1.06l-5.16-5.159a1.5 1.5 0 00-2.12 0L3 16.061zm10.125-7.81a1.125 1.125 0 112.25 0 1.125 1.125 0 01-2.25 0z"
+                        clip-rule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                  <span class="font-medium">Upload File</span>
+                </button>
+
+                <button
+                  onclick="document.getElementById('image-upload').click()"
+                  class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-100 rounded-lg text-left transition text-sm text-gray-700"
+                >
+                  <div class="p-1.5 bg-blue-100 rounded-full text-blue-600">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      class="w-5 h-5"
+                    >
+                      <path
+                        fill-rule="evenodd"
+                        d="M5.625 1.5c-1.036 0-1.875.84-1.875 1.875v17.25c0 1.035.84 1.875 1.875 1.875h12.75c1.035 0 1.875-.84 1.875-1.875V12.75A3.75 3.75 0 0016.5 9h-1.875a1.875 1.875 0 01-1.875-1.875V5.25A3.75 3.75 0 009 1.5H5.625zM7.5 15a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5A.75.75 0 017.5 15zm.75 2.25a.75.75 0 000 1.5H12a.75.75 0 000-1.5H8.25z"
+                        clip-rule="evenodd"
+                      />
+                      <path
+                        d="M12.971 1.816A5.23 5.23 0 0114.25 5.25v1.875c0 .207.168.375.375.375H16.5a5.23 5.23 0 013.434 1.279 9.768 9.768 0 00-6.963-6.963z"
+                      />
+                    </svg>
+                  </div>
+                  <span class="font-medium">Upload Gambar</span>
+                </button>
+
+                <div class="h-px bg-gray-200 my-1 mx-2"></div>
+
+                <button
+                  id="menu-thinking-item"
+                  class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-100 rounded-lg text-left transition text-sm text-gray-700"
+                >
+                  <div
+                    id="menu-thinking-icon-bg"
+                    class="p-1.5 bg-gray-100 rounded-full text-gray-500 transition-colors"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke-width="1.5"
+                      stroke="currentColor"
+                      class="w-5 h-5"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18"
+                      />
+                    </svg>
+                  </div>
+                  <div class="flex-1 flex justify-between items-center">
+                    <span class="font-medium">Thinking</span>
+                    <svg
+                      id="menu-thinking-check"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      class="w-5 h-5 text-blue-600 hidden"
+                    >
+                      <path
+                        fill-rule="evenodd"
+                        d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z"
+                        clip-rule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                </button>
+              </div>
+
+              <input
+                type="file"
+                id="file-upload"
+                class="hidden"
+                onchange="alert('Fitur Upload File akan segera hadir!')"
+              />
+              <input
+                type="file"
+                id="image-upload"
+                accept="image/*"
+                class="hidden"
+                onchange="alert('Fitur Upload Gambar akan segera hadir!')"
+              />
+
+              <div class="flex items-center space-x-3">
+                <button
+                  id="plus-button"
+                  type="button"
+                  class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 transition-all focus:outline-none"
+                  title="Tambah"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="2"
+                    stroke="currentColor"
+                    class="w-6 h-6"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M12 4.5v15m7.5-7.5h-15"
+                    />
+                  </svg>
+                </button>
+                <input
+                  type="text"
+                  id="question-input"
+                  placeholder="Ketik pertanyaan Anda di sini..."
+                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                />
+                <button
+                  id="ask-button"
+                  class="bg-blue-600 text-white font-bold py-3 px-5 rounded-lg hover:bg-blue-700 transition-all flex items-center justify-center shrink-0"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M5 10l7-7m0 0l7 7m-7-7v18"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </footer>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="delete-modal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden"
+    >
+      <div
+        id="modal-content"
+        class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm mx-4"
+      >
+        <div class="text-center">
+          <div
+            class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100"
+          >
+            <svg
+              class="h-6 w-6 text-red-600"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+          </div>
+          <h3
+            class="text-lg leading-6 font-medium text-gray-900 mt-5"
+            id="modal-title"
+          >
+            Hapus Percakapan
+          </h3>
+          <div class="mt-2">
+            <p class="text-sm text-gray-500" id="modal-text">
+              Tindakan ini tidak dapat dibatalkan.
+            </p>
+          </div>
+        </div>
+        <div
+          class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense"
+        >
+          <button
+            id="confirm-delete-btn"
+            type="button"
+            class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 sm:col-start-2 sm:text-sm"
+          >
+            Hapus
+          </button>
+          <button
+            id="cancel-delete-btn"
+            type="button"
+            class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:col-start-1 sm:text-sm"
+          >
+            Batal
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50"></div>
+
+    <script>
+      const firebaseConfig = {
+        apiKey: "AIzaSyD1ApIva4AEC_q3faVWMZ-Kie7vYY0H49c",
+        authDomain: "defi-c1610.firebaseapp.com",
+        projectId: "defi-c1610",
+        storageBucket: "defi-c1610.appspot.com",
+        messagingSenderId: "598615625156",
+        appId: "1:598615625156:web:87472656a3578a0de42891",
+        measurementId: "G-3C6TRHKZ98",
+      };
+
+      firebase.initializeApp(firebaseConfig);
+      const auth = firebase.auth();
+
+      /* Views */
+      const authView = document.getElementById("auth-view");
+      const chatView = document.getElementById("chat-view");
+      const registerForm = document.getElementById("register-form");
+      const loadingView = document.getElementById("loading-view");
+      const logoutBtn = document.getElementById("logout-btn");
+      const loginForm = document.getElementById("login-form");
+      const showRegisterLink = document.getElementById("show-register");
+      const showLoginLink = document.getElementById("show-login");
+
+      const showView = (viewId) => {
+        loadingView.classList.add("hidden");
+        authView.classList.add("hidden");
+        chatView.classList.add("hidden");
+        document.getElementById(viewId).classList.remove("hidden");
+      };
+
+      auth.onAuthStateChanged(async (user) => {
+        if (user) {
+          showView("chat-view");
+          initializeApp(user);
+        } else {
+          showView("auth-view");
+        }
+      });
+
+      showRegisterLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        loginForm.classList.add("hidden");
+        registerForm.classList.remove("hidden");
+      });
+      showLoginLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        registerForm.classList.add("hidden");
+        loginForm.classList.remove("hidden");
+      });
+
+      const handleLogin = (e) => {
+        e.preventDefault();
+        const email = document.getElementById("login-email").value;
+        const password = document.getElementById("login-password").value;
+        const errorEl = document.getElementById("login-error");
+        auth.signInWithEmailAndPassword(email, password).catch((error) => {
+          if (error.code === "auth/internal-error")
+            errorEl.textContent = "Sandi atau email salah.";
+          else if (error.code === "auth/too-many-requests")
+            errorEl.textContent = "Terlalu banyak percobaan.";
+          else errorEl.textContent = "Silakan coba lagi.";
+        });
+      };
+
+      const handleRegister = async (e) => {
+        e.preventDefault();
+        const email = document.getElementById("register-email").value;
+        const password = document.getElementById("register-password").value;
+        const errorEl = document.getElementById("register-error");
+        try {
+          const userCredential = await auth.createUserWithEmailAndPassword(
+            email,
+            password
+          );
+          const token = await userCredential.user.getIdToken();
+          const res = await fetch(`${window.location.origin}/api/users/init`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          if (!res.ok) console.error("Gagal init:", await res.text());
+        } catch (error) {
+          errorEl.textContent = error.message;
+        }
+      };
+
+      const handleLogout = () => auth.signOut();
+
+      function initializeApp(user) {
+        const sidebar = document.getElementById("history-sidebar");
+        const openBtn = document.getElementById("open-sidebar-btn");
+        const closeBtn = document.getElementById("close-sidebar-btn");
+        const chatLogContainer = document.getElementById("chat-log-container");
+        const chatLog = document.getElementById("chat-log");
+        const welcomeMessage = document.getElementById("welcome-message");
+        const questionInput = document.getElementById("question-input");
+        const askButton = document.getElementById("ask-button");
+        const newChatBtn = document.getElementById("new-chat-btn");
+        const historyList = document.getElementById("history-list");
+        const deleteModal = document.getElementById("delete-modal");
+        const confirmDeleteBtn = document.getElementById("confirm-delete-btn");
+        const cancelDeleteBtn = document.getElementById("cancel-delete-btn");
+        const modalText = document.getElementById("modal-text");
+        const userEmailDisplay = document.getElementById("user-email-display");
+        const toastContainer = document.getElementById("toast-container");
+
+        // BUTTON PLUS & MENU VARS
+        const plusButton = document.getElementById("plus-button");
+        const plusMenu = document.getElementById("plus-menu");
+        const menuThinkingItem = document.getElementById("menu-thinking-item");
+        const menuThinkingIconBg = document.getElementById(
+          "menu-thinking-icon-bg"
+        );
+        const menuThinkingCheck = document.getElementById(
+          "menu-thinking-check"
+        );
+
+        let isThinking = false;
+        let isStreaming = false;
+        let currentStreamController = null;
+
+        const API_URL = window.location.origin;
+        let activeSessionId = null;
+        let currentUserProfile = {};
+
+        userEmailDisplay.textContent = user.email;
+        logoutBtn.addEventListener("click", handleLogout);
+
+        const getAuthHeader = async () => ({
+          Authorization: `Bearer ${await user.getIdToken()}`,
+        });
+
+        // Sidebar Logic
+        const setSidebarState = (isOpen) => {
+          sidebar.classList.toggle("hidden", !isOpen);
+          openBtn.classList.toggle("hidden", isOpen);
+          localStorage.setItem("sidebarOpen", isOpen);
+        };
+        openBtn.addEventListener("click", () => setSidebarState(true));
+        closeBtn.addEventListener("click", () => setSidebarState(false));
+        setSidebarState(localStorage.getItem("sidebarOpen") !== "false");
+
+        // Menu Logic
+        plusButton.addEventListener("click", (e) => {
+          e.stopPropagation();
+          plusMenu.classList.toggle("hidden");
+          plusButton.style.transform = plusMenu.classList.contains("hidden")
+            ? "rotate(0deg)"
+            : "rotate(45deg)";
+        });
+
+        document.addEventListener("click", (e) => {
+          if (!plusMenu.contains(e.target) && !plusButton.contains(e.target)) {
+            plusMenu.classList.add("hidden");
+            plusButton.style.transform = "rotate(0deg)";
+          }
+        });
+
+        menuThinkingItem.addEventListener("click", (e) => {
+          e.stopPropagation();
+          isThinking = !isThinking;
+          updateThinkingVisuals();
+          showToast(
+            isThinking ? "Mode Thinking: AKTIF" : "Mode Thinking: MATI"
+          );
+        });
+
+        function updateThinkingVisuals() {
+          if (isThinking) {
+            menuThinkingIconBg.classList.remove("bg-gray-100", "text-gray-500");
+            menuThinkingIconBg.classList.add("bg-blue-100", "text-blue-600");
+            menuThinkingCheck.classList.remove("hidden");
+            plusButton.classList.add("text-blue-600", "bg-blue-50");
+          } else {
+            menuThinkingIconBg.classList.add("bg-gray-100", "text-gray-500");
+            menuThinkingIconBg.classList.remove("bg-blue-100", "text-blue-600");
+            menuThinkingCheck.classList.add("hidden");
+            plusButton.classList.remove("text-blue-600", "bg-blue-50");
+          }
+        }
+
+        const showToast = (message, isError = false) => {
+          const toast = document.createElement("div");
+          toast.className = `p-4 rounded-md shadow-lg text-white text-sm mb-2 ${
+            isError ? "bg-red-500" : "bg-green-500"
+          } toast-in`;
+          toast.textContent = message;
+          toastContainer.appendChild(toast);
+          setTimeout(() => {
+            toast.classList.add("toast-out");
+            toast.addEventListener("animationend", () => toast.remove());
+          }, 3000);
+        };
+
+        // === RENDER MESSAGE FUNCTION (FIXED FOR LONG CONTENT) ===
+        const renderMessage = (
+          role,
+          text,
+          sources = [],
+          isStreaming = false
+        ) => {
+          if (welcomeMessage && !isStreaming)
+            welcomeMessage.style.display = "none";
+
+          const messageLine = document.createElement("div");
+          messageLine.className = `flex items-start gap-3 ${
+            role === "user" ? "justify-end" : "justify-start"
+          }`;
+
+          const avatar = document.createElement("div");
+          avatar.className =
+            "w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-sm";
+
+          const contentWrapper = document.createElement("div");
+          contentWrapper.className = `rounded-lg px-4 py-2 max-w-md lg:max-w-xl`;
+
+          const roleName = document.createElement("p");
+          roleName.className = "font-bold text-sm mb-1";
+
+          const messageText = document.createElement("p");
+          messageText.className = "leading-relaxed whitespace-pre-wrap";
+          messageText.textContent = text;
+
+          if (role === "user") {
+            avatar.classList.add("bg-blue-600");
+            avatar.innerHTML =
+              '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>';
+            roleName.textContent = currentUserProfile.displayName || "Anda";
+            contentWrapper.classList.add("bg-blue-600", "text-white");
+            messageLine.append(contentWrapper, avatar);
+          } else {
+            avatar.classList.add("bg-gray-800");
+            avatar.textContent = "dF";
+            roleName.textContent = "déFi";
+            contentWrapper.classList.add("bg-gray-200", "text-gray-800");
+            messageLine.append(avatar, contentWrapper);
+          }
+
+          contentWrapper.appendChild(roleName);
+          contentWrapper.appendChild(messageText);
+
+          // === LOGIKA REFERENSI DINAMIS (SCROLL HEIGHT) ===
+          if (role === "bot" && sources.length > 0 && !isStreaming) {
+            const sourcesContainer = document.createElement("div");
+
+            // 1. Tombol Toggle
+            const toggleBtn = document.createElement("div");
+            toggleBtn.className = "source-toggle-btn";
+            toggleBtn.innerHTML = `
+              <span class="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                </svg>
+                📚 ${sources.length} Referensi
+              </span>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 arrow-icon">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            `;
+
+            // 2. Container List
+            const listWrapper = document.createElement("div");
+            listWrapper.className = "source-list-wrapper";
+
+            sources.forEach((source, index) => {
+              const sourceItem = document.createElement("div");
+              sourceItem.className = "source-item";
+
+              const titleText = source.content || `Sumber ${index + 1}`;
+
+              const sourceTitle = document.createElement("p");
+              sourceTitle.className = "source-title";
+              sourceTitle.textContent = titleText;
+
+              const sourceContent = document.createElement("p");
+              sourceContent.className = "source-content";
+              sourceContent.textContent = source.page_content;
+
+              sourceItem.appendChild(sourceTitle);
+              sourceItem.appendChild(sourceContent);
+              listWrapper.appendChild(sourceItem);
+            });
+
+            // 3. Event Listener Klik (DYNAMIC HEIGHT FIX)
+            toggleBtn.addEventListener("click", () => {
+              const arrow = toggleBtn.querySelector(".arrow-icon");
+
+              if (listWrapper.style.maxHeight) {
+                // Tutup
+                listWrapper.style.maxHeight = null;
+                arrow.classList.remove("rotate");
+              } else {
+                // Buka setinggi konten sebenarnya (tidak ada batas 1000px lagi)
+                listWrapper.style.maxHeight = listWrapper.scrollHeight + "px";
+                arrow.classList.add("rotate");
+              }
+            });
+
+            sourcesContainer.appendChild(toggleBtn);
+            sourcesContainer.appendChild(listWrapper);
+            contentWrapper.appendChild(sourcesContainer);
+          }
+
+          chatLog.appendChild(messageLine);
+
+          // Scroll ke bawah
+          chatLogContainer.scrollTo({
+            top: chatLogContainer.scrollHeight,
+            behavior: "smooth",
+          });
+
+          return { messageLine, contentWrapper, messageText };
+        };
+
+        // === FUNGSI STREAMING RESPONSE ===
+        const handleAskQuestion = async () => {
+          if (isStreaming) {
+            // Jika sedang streaming, cancel stream yang ada
+            if (currentStreamController) {
+              currentStreamController.abort();
+              currentStreamController = null;
+            }
+            isStreaming = false;
+            askButton.disabled = false;
+            return;
+          }
+
+          const question = questionInput.value.trim();
+          if (!question) return;
+
+          if (activeSessionId === null && welcomeMessage) {
+            welcomeMessage.style.display = "none";
+          }
+
+          // Render pesan pengguna
+          renderMessage("user", question);
+          questionInput.value = "";
+          askButton.disabled = true;
+          isStreaming = true;
+
+          // Ganti ikon tombol menjadi stop
+          askButton.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+            </svg>
+          `;
+
+          // Buat elemen untuk menampilkan stream
+          const { messageLine, contentWrapper, messageText } = renderMessage(
+            "bot",
+            "",
+            [],
+            true
+          );
+          messageLine.id = "bot-stream-message";
+          messageText.id = "streaming-text";
+
+          // Tambahkan cursor berkedip
+          const cursor = document.createElement("span");
+          cursor.className = "streaming-cursor";
+          messageText.appendChild(cursor);
+
+          const formData = new FormData();
+          formData.append("question", question);
+          formData.append("streaming", "true"); // Flag streaming
+          if (activeSessionId) formData.append("session_id", activeSessionId);
+          formData.append("thinking", isThinking);
+
+          try {
+            const headers = await getAuthHeader();
+
+            // Buat AbortController untuk bisa cancel stream
+            currentStreamController = new AbortController();
+
+            const response = await fetch(`${API_URL}/api/ask`, {
+              method: "POST",
+              headers: {
+                ...headers,
+                Accept: "text/event-stream",
+              },
+              body: formData,
+              signal: currentStreamController.signal,
+            });
+
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let accumulatedText = "";
+            let sources = [];
+
+            // Hapus cursor saat mulai streaming
+            cursor.remove();
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              const chunk = decoder.decode(value, { stream: true });
+              const lines = chunk.split("\n");
+
+              for (const line of lines) {
+                if (line.startsWith("data: ")) {
+                  const data = line.slice(6);
+
+                  if (data === "[DONE]") {
+                    // Stream selesai
+                    break;
+                  }
+
+                  try {
+                    const parsed = JSON.parse(data);
+
+                    if (parsed.type === "text") {
+                      // Tambahkan teks secara bertahap
+                      accumulatedText += parsed.content;
+                      messageText.textContent = accumulatedText;
+
+                      // Scroll terus saat ada teks baru
+                      chatLogContainer.scrollTo({
+                        top: chatLogContainer.scrollHeight,
+                        behavior: "smooth",
+                      });
+                    } else if (parsed.type === "sources") {
+                      sources = parsed.sources || [];
+                    } else if (parsed.type === "session_id") {
+                      activeSessionId = parsed.session_id;
+                    }
+                  } catch (e) {
+                    console.warn("Failed to parse SSE data:", e, "Data:", data);
+                  }
+                }
+              }
+            }
+
+            // Stream selesai, tambahkan sumber referensi jika ada
+            if (sources.length > 0) {
+              const sourcesContainer = document.createElement("div");
+
+              const toggleBtn = document.createElement("div");
+              toggleBtn.className = "source-toggle-btn";
+              toggleBtn.innerHTML = `
+                <span class="flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                  </svg>
+                  📚 ${sources.length} Referensi
+                </span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 arrow-icon">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
+              `;
+
+              const listWrapper = document.createElement("div");
+              listWrapper.className = "source-list-wrapper";
+
+              sources.forEach((source, index) => {
+                const sourceItem = document.createElement("div");
+                sourceItem.className = "source-item";
+
+                const titleText = source.source || `Sumber ${index + 1}`;
+                const sourceTitle = document.createElement("p");
+                sourceTitle.className = "source-title";
+                sourceTitle.textContent = titleText;
+
+                const sourceContent = document.createElement("p");
+                sourceContent.className = "source-content";
+                sourceContent.textContent = source.content;
+
+                sourceItem.appendChild(sourceTitle);
+                sourceItem.appendChild(sourceContent);
+                listWrapper.appendChild(sourceItem);
+              });
+
+              toggleBtn.addEventListener("click", () => {
+                const arrow = toggleBtn.querySelector(".arrow-icon");
+                if (listWrapper.style.maxHeight) {
+                  listWrapper.style.maxHeight = null;
+                  arrow.classList.remove("rotate");
+                } else {
+                  listWrapper.style.maxHeight = listWrapper.scrollHeight + "px";
+                  arrow.classList.add("rotate");
+                }
+              });
+
+              sourcesContainer.appendChild(toggleBtn);
+              sourcesContainer.appendChild(listWrapper);
+              contentWrapper.appendChild(sourcesContainer);
+
+              // Update ID agar tidak bertabrakan
+              messageLine.removeAttribute("id");
+              messageText.removeAttribute("id");
+            }
+
+            // Update riwayat chat
+            if (activeSessionId) {
+              await loadChatHistory();
+            }
+          } catch (error) {
+            if (error.name === "AbortError") {
+              // Stream dibatalkan oleh pengguna
+              messageText.textContent = accumulatedText
+                ? accumulatedText + "\n\n[Dihentikan oleh pengguna]"
+                : "Permintaan dihentikan.";
+            } else {
+              messageText.textContent =
+                "Maaf, terjadi kesalahan saat memproses permintaan.";
+              console.error("Error:", error);
+              showToast("Terjadi kesalahan. Silakan coba lagi.", true);
+            }
+          } finally {
+            // Reset state
+            isStreaming = false;
+            currentStreamController = null;
+            askButton.disabled = false;
+
+            // Kembalikan ikon tombol ke semula
+            askButton.innerHTML = `
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+              </svg>
+            `;
+          }
+        };
+
+        let currentDeleteCallback = () => {};
+        confirmDeleteBtn.addEventListener("click", () => {
+          currentDeleteCallback();
+          hideDeleteModal();
+        });
+        cancelDeleteBtn.addEventListener("click", () => hideDeleteModal());
+        const showDeleteModal = (callback, sessionTitle) => {
+          currentDeleteCallback = callback;
+          modalText.textContent = `Apakah Anda yakin ingin menghapus percakapan "${sessionTitle}"?`;
+          deleteModal.classList.remove("hidden");
+        };
+        const hideDeleteModal = () => deleteModal.classList.add("hidden");
+
+        const loadUserProfile = async () => {
+          try {
+            const headers = await getAuthHeader();
+            const response = await fetch(`${API_URL}/api/users/profile`, {
+              headers,
+            });
+            currentUserProfile = await response.json();
+          } catch (error) {
+            console.error("Gagal memuat profil:", error);
+          }
+        };
+
+        const loadChatHistory = async () => {
+          try {
+            const headers = await getAuthHeader();
+            const response = await fetch(`${API_URL}/api/chats`, { headers });
+            if (!response.ok) throw new Error("Gagal memuat riwayat.");
+            const sessions = await response.json();
+            historyList.innerHTML = "";
+            sessions.forEach((session) => {
+              const historyItemContainer = document.createElement("div");
+              historyItemContainer.className =
+                "flex items-center justify-between group rounded-md hover:bg-gray-700/50";
+              const link = document.createElement("a");
+              link.href = "#";
+              link.className = `block p-2.5 text-sm truncate flex-1 ${
+                session.id === activeSessionId
+                  ? "bg-gray-700 font-semibold"
+                  : ""
+              }`;
+              link.textContent = session.title;
+              link.dataset.sessionId = session.id;
+              link.addEventListener("click", (e) => {
+                e.preventDefault();
+                loadChatMessages(session.id);
+              });
+              const deleteBtn = document.createElement("button");
+              deleteBtn.className =
+                "p-2 text-gray-400 hover:text-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity";
+              deleteBtn.innerHTML =
+                '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>';
+              deleteBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                showDeleteModal(
+                  () => deleteChatSession(session.id),
+                  session.title
+                );
+              });
+              historyItemContainer.appendChild(link);
+              historyItemContainer.appendChild(deleteBtn);
+              historyList.appendChild(historyItemContainer);
+            });
+          } catch (error) {
+            console.error("Gagal memuat riwayat:", error);
+          }
+        };
+
+        const deleteChatSession = async (sessionId) => {
+          try {
+            const headers = await getAuthHeader();
+            const response = await fetch(`${API_URL}/api/chats/${sessionId}`, {
+              method: "DELETE",
+              headers,
+            });
+            if (!response.ok) throw new Error("Gagal menghapus sesi.");
+            if (activeSessionId === sessionId) startNewChat();
+            await loadChatHistory();
+            showToast("Percakapan berhasil dihapus.");
+          } catch (error) {
+            console.error("Error hapus:", error);
+            showToast("Gagal menghapus percakapan.", true);
+          }
+        };
+
+        const loadChatMessages = async (sessionId) => {
+          try {
+            const headers = await getAuthHeader();
+            chatLog.innerHTML = '<div class="loader mx-auto"></div>';
+            const response = await fetch(`${API_URL}/api/chats/${sessionId}`, {
+              headers,
+            });
+            if (!response.ok) throw new Error("Gagal memuat pesan.");
+
+            // PERBAIKAN: Parse response yang benar
+            const data = await response.json();
+
+            // Cek apakah response punya key 'messages'
+            const messages = data.messages || data; // Fallback jika langsung array
+
+            console.log("Loaded messages:", messages); // Debug log
+
+            chatLog.innerHTML = "";
+
+            // Pastikan messages adalah array
+            if (Array.isArray(messages)) {
+              messages.forEach((msg) => {
+                const sources = msg.sources || [];
+                renderMessage(msg.role, msg.content, sources);
+              });
+            } else {
+              throw new Error("Format pesan tidak valid");
+            }
+
+            activeSessionId = sessionId;
+            await loadChatHistory();
+          } catch (error) {
+            console.error("Gagal memuat pesan:", error);
+            chatLog.innerHTML = `<p class="text-red-500 text-center">Gagal memuat percakapan: ${error.message}</p>`;
+          }
+        };
+
+        const startNewChat = () => {
+          // Cancel stream yang sedang berjalan jika ada
+          if (currentStreamController) {
+            currentStreamController.abort();
+            currentStreamController = null;
+          }
+
+          isStreaming = false;
+          activeSessionId = null;
+          chatLog.innerHTML = "";
+          if (welcomeMessage) {
+            chatLog.appendChild(welcomeMessage);
+            welcomeMessage.style.display = "block";
+          }
+          questionInput.value = "";
+          document
+            .querySelectorAll("#history-list a")
+            .forEach((a) => a.classList.remove("bg-gray-700", "font-semibold"));
+
+          // Reset tombol ke state normal
+          askButton.disabled = false;
+          askButton.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+            </svg>
+          `;
+        };
+
+        askButton.addEventListener("click", handleAskQuestion);
+        questionInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            handleAskQuestion();
+          }
+        });
+        newChatBtn.addEventListener("click", startNewChat);
+
+        loadUserProfile().then(() => {
+          loadChatHistory();
+        });
+      }
+    </script>
+  </body>
+</html>
